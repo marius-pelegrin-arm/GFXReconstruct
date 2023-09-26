@@ -759,6 +759,18 @@ Optional arguments:
               Enables dumping of all image sub resources (mip map levels and array layers).
   --pbi-all             Print all block information.
   --pbis <index1,index2>Print block information between block index1 and block index2.
+  --save-pipeline-cache <cache-file>
+                        If set, produces pipeline caches at replay time instead of using
+                        the one saved at capture time and save those caches in <cache-file>.
+  --load-pipeline-cache <cache-file>
+                        If set, loads data created by the `--save-pipeline-cache`
+                        option in <cache-file> and uses it to create the pipelines instead
+                        of the pipeline caches saved at capture time.
+  --add-new-pipeline-caches
+                        If set, allows gfxreconstruct to create new vkPipelineCache objects
+                        when it encounters a pipeline created without cache. This option can
+                        be used in coordination with `--save-pipeline-cache` and
+                        `--load-pipeline-cache`.
 ```
 
 ### Key Controls

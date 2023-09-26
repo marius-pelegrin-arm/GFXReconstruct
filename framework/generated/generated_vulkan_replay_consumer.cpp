@@ -924,11 +924,10 @@ void VulkanReplayConsumer::Process_vkDestroyPipelineCache(
     format::HandleId                            pipelineCache,
     StructPointerDecoder<Decoded_VkAllocationCallbacks>* pAllocator)
 {
-    VkDevice in_device = MapHandle<DeviceInfo>(device, &VulkanObjectInfoTable::GetDeviceInfo);
-    VkPipelineCache in_pipelineCache = MapHandle<PipelineCacheInfo>(pipelineCache, &VulkanObjectInfoTable::GetPipelineCacheInfo);
-    const VkAllocationCallbacks* in_pAllocator = GetAllocationCallbacks(pAllocator);
+    auto in_device = GetObjectInfoTable().GetDeviceInfo(device);
+    auto in_pipelineCache = GetObjectInfoTable().GetPipelineCacheInfo(pipelineCache);
 
-    GetDeviceTable(in_device)->DestroyPipelineCache(in_device, in_pipelineCache, in_pAllocator);
+    OverrideDestroyPipelineCache(GetDeviceTable(in_device->handle)->DestroyPipelineCache, in_device, in_pipelineCache, pAllocator);
     RemoveHandle(pipelineCache, &VulkanObjectInfoTable::RemovePipelineCacheInfo);
 }
 
@@ -1023,11 +1022,10 @@ void VulkanReplayConsumer::Process_vkDestroyPipeline(
     format::HandleId                            pipeline,
     StructPointerDecoder<Decoded_VkAllocationCallbacks>* pAllocator)
 {
-    VkDevice in_device = MapHandle<DeviceInfo>(device, &VulkanObjectInfoTable::GetDeviceInfo);
-    VkPipeline in_pipeline = MapHandle<PipelineInfo>(pipeline, &VulkanObjectInfoTable::GetPipelineInfo);
-    const VkAllocationCallbacks* in_pAllocator = GetAllocationCallbacks(pAllocator);
+    auto in_device = GetObjectInfoTable().GetDeviceInfo(device);
+    auto in_pipeline = GetObjectInfoTable().GetPipelineInfo(pipeline);
 
-    GetDeviceTable(in_device)->DestroyPipeline(in_device, in_pipeline, in_pAllocator);
+    OverrideDestroyPipeline(GetDeviceTable(in_device->handle)->DestroyPipeline, in_device, in_pipeline, pAllocator);
     RemoveHandle(pipeline, &VulkanObjectInfoTable::RemovePipelineInfo);
 }
 
@@ -7441,19 +7439,19 @@ void VulkanReplayConsumer::Process_vkCreateRayTracingPipelinesNV(
     StructPointerDecoder<Decoded_VkAllocationCallbacks>* pAllocator,
     HandlePointerDecoder<VkPipeline>*           pPipelines)
 {
-    VkDevice in_device = MapHandle<DeviceInfo>(device, &VulkanObjectInfoTable::GetDeviceInfo);
-    VkPipelineCache in_pipelineCache = MapHandle<PipelineCacheInfo>(pipelineCache, &VulkanObjectInfoTable::GetPipelineCacheInfo);
-    const VkRayTracingPipelineCreateInfoNV* in_pCreateInfos = pCreateInfos->GetPointer();
+    auto in_device = GetObjectInfoTable().GetDeviceInfo(device);
+    auto in_pipelineCache = GetObjectInfoTable().GetPipelineCacheInfo(pipelineCache);
+
     MapStructArrayHandles(pCreateInfos->GetMetaStructPointer(), pCreateInfos->GetLength(), GetObjectInfoTable());
-    const VkAllocationCallbacks* in_pAllocator = GetAllocationCallbacks(pAllocator);
     if (!pPipelines->IsNull()) { pPipelines->SetHandleLength(createInfoCount); }
     if (omitted_pipeline_cache_data_) {AllowCompileDuringPipelineCreation(createInfoCount, pCreateInfos->GetPointer());}
-    VkPipeline* out_pPipelines = pPipelines->GetHandlePointer();
+    std::vector<PipelineInfo> handle_info(createInfoCount);
+    for (size_t i = 0; i < createInfoCount; ++i) { pPipelines->SetConsumerData(i, &handle_info[i]); }
 
-    VkResult replay_result = GetDeviceTable(in_device)->CreateRayTracingPipelinesNV(in_device, in_pipelineCache, createInfoCount, in_pCreateInfos, in_pAllocator, out_pPipelines);
+    VkResult replay_result = OverrideCreateRayTracingPipelinesNV(GetDeviceTable(in_device->handle)->CreateRayTracingPipelinesNV, returnValue, in_device, in_pipelineCache, createInfoCount, pCreateInfos, pAllocator, pPipelines);
     CheckResult("vkCreateRayTracingPipelinesNV", returnValue, replay_result, call_info);
 
-    AddHandles<PipelineInfo>(device, pPipelines->GetPointer(), pPipelines->GetLength(), out_pPipelines, createInfoCount, &VulkanObjectInfoTable::AddPipelineInfo);
+    AddHandles<PipelineInfo>(device, pPipelines->GetPointer(), pPipelines->GetLength(), pPipelines->GetHandlePointer(), createInfoCount, std::move(handle_info), &VulkanObjectInfoTable::AddPipelineInfo);
 }
 
 void VulkanReplayConsumer::Process_vkGetRayTracingShaderGroupHandlesKHR(
